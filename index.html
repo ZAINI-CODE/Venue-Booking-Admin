@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1120" />
+    <meta
+      name="description"
+      content="Offline-capable farmhouse booking administration dashboard for managing reservations and confirmation slips."
+    />
     <title>Farmhouse Booking Admin</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -59,7 +64,7 @@
                   <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="bookingsTableBody"></tbody>
+              <tbody id="bookingsTableBody" aria-live="polite"></tbody>
             </table>
           </div>
         </div>
@@ -168,7 +173,7 @@
     <dialog id="slipDialog">
       <div class="slip-actions no-print">
         <button id="printSlipBtn">Print Slip</button>
-        <button id="downloadPdfBtn">Download PDF</button>
+        <button id="downloadPdfBtn">Print / Save PDF</button>
         <button id="shareWhatsappBtn">Share WhatsApp</button>
         <button id="shareEmailBtn">Share Email</button>
         <button id="nativeShareBtn">Share</button>
