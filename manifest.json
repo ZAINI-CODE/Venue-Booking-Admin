@@ -1,8 +1,13 @@
 {
   "name": "Farmhouse Booking Admin",
   "short_name": "FarmhouseAdmin",
+  "description": "Offline-capable farmhouse booking administration dashboard.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "./index.html",
   "display": "standalone",
+  "scope": "./",
+  "categories": ["business", "productivity"],
   "background_color": "#020617",
   "theme_color": "#0b1120",
   "icons": [
