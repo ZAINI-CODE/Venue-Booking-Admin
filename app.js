@@ -35,8 +35,8 @@ const terms = [
   "Please follow the booked check-in and check-out timings.",
 ];
 
-let bookings = loadJSON(BOOKING_KEY, []);
-let settings = { ...defaultSettings, ...loadJSON(SETTINGS_KEY, {}) };
+let bookings = normalizeBookings(loadJSON(BOOKING_KEY, []));
+let settings = normalizeSettings(loadJSON(SETTINGS_KEY, {}));
 let editingBookingId = null;
 let selectedSlipBookingId = null;
 
@@ -74,9 +74,20 @@ function initialize() {
 function loadJSON(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key)) ?? fallback;
-  } catch {
+  } catch (error) {
+    console.warn(`Unable to read ${key} from browser storage.`, error);
     return fallback;
   }
+}
+
+function normalizeBookings(value) {
+  return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
+function normalizeSettings(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...defaultSettings, ...value }
+    : { ...defaultSettings };
 }
 
 function saveBookings() {
@@ -87,7 +98,8 @@ function saveBookings() {
       snapshots.push({ ts: Date.now(), data: bookings });
       localStorage.setItem(BACKUP_KEY, JSON.stringify(snapshots.slice(-20)));
     }
-  } catch {
+  } catch (error) {
+    console.error("Unable to save bookings.", error);
     alert("Unable to save bookings. Please check browser storage permissions.");
   }
 }
@@ -95,13 +107,18 @@ function saveBookings() {
 function saveSettings() {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
+  } catch (error) {
+    console.error("Unable to save settings.", error);
     alert("Unable to save settings. Please check browser storage permissions.");
   }
 }
 
 function generateBookingId() {
-  return `BKG-${Date.now().toString().slice(-8)}`;
+  let bookingId;
+  do {
+    bookingId = `BKG-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  } while (bookings.some((item) => item.bookingId === bookingId));
+  return bookingId;
 }
 
 function setupTabs() {
@@ -130,21 +147,39 @@ function setupFormBehaviors() {
   bookingForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(bookingForm);
+    const totalAmount = Number(formData.get("totalAmount") || 0);
+    const advancePayment = Number(formData.get("advancePayment") || 0);
+    const bookingDate = formData.get("bookingDate")?.toString();
+    const startTime = formData.get("startTime")?.toString();
+    const endTime = formData.get("endTime")?.toString();
+
+    if (advancePayment > totalAmount) {
+      alert("Advance payment cannot be greater than the total booking amount.");
+      advancePaymentInput.focus();
+      return;
+    }
+
+    if (startTime >= endTime) {
+      alert("End time must be later than start time.");
+      bookingForm.elements.endTime.focus();
+      return;
+    }
+
     const record = {
       bookingId: bookingIdInput.value,
       clientName: formData.get("clientName")?.toString().trim(),
       contactNumber: formData.get("contactNumber")?.toString().trim(),
       address: formData.get("address")?.toString().trim(),
-      bookingDate: formData.get("bookingDate"),
-      day: dayInput.value,
+      bookingDate,
+      day: bookingDate ? getDayFromDate(bookingDate) : "",
       timeSlot: formData.get("timeSlot")?.toString().trim(),
-      startTime: formData.get("startTime"),
-      endTime: formData.get("endTime"),
+      startTime,
+      endTime,
       eventType: formData.get("eventType"),
       guests: Number(formData.get("guests") || 0),
-      totalAmount: Number(formData.get("totalAmount") || 0),
-      advancePayment: Number(formData.get("advancePayment") || 0),
-      remainingAmount: Number(remainingAmountInput.value || 0),
+      totalAmount,
+      advancePayment,
+      remainingAmount: totalAmount - advancePayment,
       specialNotes: formData.get("specialNotes")?.toString().trim() || "",
       updatedAt: new Date().toISOString(),
       createdAt: editingBookingId
@@ -220,9 +255,9 @@ function setupBackupControls() {
     if (!file) return;
     try {
       const parsed = JSON.parse(await file.text());
-      bookings = Array.isArray(parsed) ? parsed : parsed.bookings || [];
+      bookings = normalizeBookings(Array.isArray(parsed) ? parsed : parsed.bookings);
       if (parsed.settings) {
-        settings = { ...defaultSettings, ...parsed.settings };
+        settings = normalizeSettings(parsed.settings);
         saveSettings();
         settingsForm.elements.farmhouseName.value = settings.farmhouseName;
         settingsForm.elements.phoneNumber.value = settings.phoneNumber;
@@ -234,7 +269,8 @@ function setupBackupControls() {
       saveBookings();
       renderDashboard();
       alert("Backup imported successfully.");
-    } catch {
+    } catch (error) {
+      console.error("Unable to import booking backup.", error);
       alert("Invalid JSON file.");
     }
     event.target.value = "";
@@ -249,7 +285,7 @@ function renderDashboard() {
   const todaysBookings = bookings.filter((item) => item.bookingDate === today);
   const upcomingBookings = bookings.filter((item) => item.bookingDate > today);
   const monthlyRevenue = bookings
-    .filter((item) => item.bookingDate.startsWith(thisMonth))
+    .filter((item) => String(item.bookingDate || "").startsWith(thisMonth))
     .reduce((total, item) => total + Number(item.totalAmount || 0), 0);
 
   document.getElementById("totalBookings").textContent = String(bookings.length);
@@ -438,10 +474,17 @@ function setupSlipActions() {
       alert("Native share is not supported on this device.");
       return;
     }
-    await navigator.share({
-      title: `${settings.farmhouseName} Booking Confirmation`,
-      text: `Booking ${booking.bookingId} for ${booking.clientName} on ${booking.bookingDate}`,
-    });
+    try {
+      await navigator.share({
+        title: `${settings.farmhouseName} Booking Confirmation`,
+        text: `Booking ${booking.bookingId} for ${booking.clientName} on ${booking.bookingDate}`,
+      });
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error("Native sharing failed.", error);
+        alert("Unable to share this booking from the current device.");
+      }
+    }
   });
 }
 
