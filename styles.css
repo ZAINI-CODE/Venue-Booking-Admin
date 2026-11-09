@@ -35,6 +35,10 @@ body {
   text-align: center;
 }
 
+.app-loader[hidden] {
+  display: none !important;
+}
+
 .spinner {
   width: 2.5rem;
   height: 2.5rem;
@@ -83,6 +87,20 @@ button,
   cursor: pointer;
   font: inherit;
   min-height: 44px;
+}
+
+button:hover,
+.import-btn:hover {
+  background: var(--green);
+}
+
+button:focus-visible,
+.import-btn:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #5eead4;
+  outline-offset: 2px;
 }
 
 .secondary {
@@ -224,6 +242,8 @@ label {
 
 dialog {
   width: min(900px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
   border: none;
   border-radius: 16px;
   padding: 1rem;
